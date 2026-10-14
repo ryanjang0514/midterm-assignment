@@ -182,7 +182,7 @@ void main(){ float s = 0., w = 0.;
   o = vec4(s/w,0.,0.,1.); }`,
 
 render: HEAD + NOISE + `uniform sampler2D uH, uLut, uMask, uImg; uniform vec2 uRes, uAsp, uHoleC; uniform vec3 uInk;
-uniform float uCanv, uSpin, uHoleR, uFade, uSeed, uTextH, uInkOn, uShow, uHasImg, uCut;
+uniform float uCanv, uSpin, uHoleR, uFade, uSeed, uTextH, uInkOn, uShow, uHasImg, uCut, uMono;
 const float PI = 3.14159265;
 float bic(vec2 uv){
   vec2 st = uv*uRes - 0.5; vec2 i = floor(st), f = st - i;
@@ -246,10 +246,11 @@ void main(){
   c = mix(c, uInk*uFade, uInkOn*max(mf, 0.3*mb*(1. - mf)));
   float gr = hash(gl_FragCoord.xy + uSeed) - 0.5;
   c += gr*0.02*(0.2 + c);
+  c = mix(c, vec3(dot(c, vec3(.2126,.7152,.0722))), uMono);   /* monochrome: the interference bands as greys */
   o = vec4(c,1.);
 }`,
 
-renderP: HEAD + NOISE + `uniform sampler2D uH, uLut, uMask, uImg; uniform vec2 uRes, uAsp, uHoleC; uniform vec3 uInk; uniform float uTilt, uHoleR, uFade, uSeed, uTextH, uInkOn, uShow, uImgInv, uImgAmt, uAge, uCut;
+renderP: HEAD + NOISE + `uniform sampler2D uH, uLut, uMask, uImg; uniform vec2 uRes, uAsp, uHoleC; uniform vec3 uInk; uniform float uTilt, uHoleR, uFade, uSeed, uTextH, uInkOn, uShow, uImgInv, uImgAmt, uAge, uCut, uMono;
 float eat(vec2 uv){ return smoothstep(0., 0.1, (1.0 - uv.y) + 0.07*(vnoise(uv*vec2(13.,9.)) - 0.5) - uAge*0.82 - 0.015); }
 float bic(vec2 uv){
   vec2 st = uv*uRes - 0.5; vec2 i = floor(st), f = st - i;
@@ -298,6 +299,7 @@ void main(){
   if (!(uHoleR > 0. && hr < uHoleR)) c = mix(c, uInk*uFade, m*uInkOn*ea);
   float gr = hash(gl_FragCoord.xy + uSeed) - 0.5;
   c += gr*0.02*(0.2 + c);
+  c = mix(c, vec3(dot(c, vec3(.2126,.7152,.0722))), uMono);   /* monochrome: the interference bands as greys */
   o = vec4(c,1.);
 }`
 };
@@ -449,7 +451,7 @@ function draw(){
   run(isBubble() ? 'render' : 'renderP', null, {uH:H.a.t, uLut:lutTex, uMask:maskTex, uRes:[H.a.w, H.a.h], uAsp:[DA(),1], uHoleC:S.hole, uAge:S.age, uCanv:S.ar, uSpin:S.spin, uHasImg:S.imgKind === 'upload' ? 1 : 0,
     uImg:imgTex, uImgInv:$('inv').checked ? 1 : 0, uImgAmt:S.imgKind === 'none' ? 0 : Math.max(0.35, val('amt')/100), uShow:S.imgKind === 'none' ? 0 : val('show')/100,
     uTextH:$('inkmode').value === 'film' ? val('texth')/HN : 0, uInkOn:$('inkmode').value === 'ink' ? 1 : 0, uCut:$('inkmode').value === 'hole' ? 1 : 0, uInk:inkRGB(),
-    uTilt:val('tilt') * Math.PI/180, uHoleR:S.holeR, uFade:S.fade, uSeed:(S.time*60 % 97)});
+    uTilt:val('tilt') * Math.PI/180, uMono:$('mono').checked ? 1 : 0, uHoleR:S.holeR, uFade:S.fade, uSeed:(S.time*60 % 97)});
 }
 function inkRGB(){ const h = $('ink').value; return [1,3,5].map(i => parseInt(h.slice(i, i+2), 16)/255); }
 function pop(at){ if (S.mode !== 'alive') return; S.mode = 'burst'; S.mt = 0;

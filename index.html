@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@800&family=Archivo+Black&family=Bebas+Neue&family=Big+Shoulders+Display:wght@800&family=Black+Han+Sans&family=Bodoni+Moda:wght@700&family=Bricolage+Grotesque:wght@800&family=Cormorant+Garamond:wght@600&family=DM+Serif+Display&family=Fraunces:wght@700&family=Instrument+Serif&family=Martian+Mono:wght@400;600&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@800&family=Noto+Serif+KR:wght@700&family=Oswald:wght@700&family=Playfair+Display:wght@800&family=Schibsted+Grotesk:wght@400;500;600&family=Space+Mono:wght@700&family=Syne:wght@800&family=Unbounded:wght@800&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div class="app">
@@ -136,6 +136,7 @@
       <div class="row"><label for="hmax">Thickness</label><input id="hmax" type="range" min="250" max="1300" step="10" value="900"><output id="hmaxO"></output></div>
       <div class="row"><label for="air">Air</label><input id="air" type="range" min="0" max="100" step="1" value="35"><output id="airO"></output></div>
       <div class="row"><label for="tilt">Spin</label><input id="tilt" type="range" min="-30" max="30" step="1" value="5"><output id="tiltO"></output></div>
+      <label class="check"><input id="mono" type="checkbox"> Monochrome (black and white)</label>
       <div class="scale">
         <canvas id="scale" width="616" height="52" aria-label="Film thickness to colour scale"></canvas>
         <div class="ticks"><span>0</span><span>350</span><span>700</span><span>1050</span><span>1400 nm</span></div>
@@ -164,6 +165,6 @@
     </section>
   </aside>
 </div>
-<script src="script.js"></script>
+<script src="script.js?v=3"></script>
 </body>
 </html>
