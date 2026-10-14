@@ -47,6 +47,17 @@
     </section>
 
     <section>
+      <h2>Breath</h2>
+      <div class="pair">
+        <button id="mic" aria-pressed="false">Use microphone</button>
+        <button id="blow">Hold to blow</button>
+      </div>
+      <div class="lifebar"><i id="breathfill" style="width:0%"></i></div>
+      <div class="row"><label for="sens">Sensitivity</label><input id="sens" type="range" min="1" max="30" step="0.5" value="10"><output id="sensO"></output></div>
+      <p class="note" id="micnote">Blow into the microphone, or hold the button (or Space). Click the film to choose where the breath lands. Blow too hard for too long and it bursts.</p>
+    </section>
+
+    <section>
       <h2>Type</h2>
       <textarea id="text" spellcheck="false" aria-label="Poster text">THIS IS A POSTER</textarea>
       <div class="pair">

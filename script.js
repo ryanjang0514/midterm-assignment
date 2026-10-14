@@ -78,7 +78,7 @@ float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*f*(f*(f*6.-15.)+10.);
 /* Equilibrium thickness: gravity profile + image relief + letters (black film) + displaced rim. */
 const TARGET = `
 uniform sampler2D uImg, uMask, uBlur;
-uniform float uAge, uHmax, uImgAmt, uImgInv, uRim, uTextH, uPoster;
+uniform float uAge, uHmax, uImgAmt, uImgInv, uRim, uTextH, uPoster, uBlow; uniform vec2 uBlowP;
 /* flat sheet: the film thins from the top and takes the type with it */
 float eat(vec2 uv){ return smoothstep(0., 0.1, (1.0 - uv.y) + 0.07*(vnoise(uv*vec2(13.,9.)) - 0.5) - uAge*0.82 - 0.015); }
 float baseH(float u){
@@ -113,6 +113,8 @@ void main(){
   float dR = texture(uBlur,vUv+ex).r - texture(uBlurPrev,vUv+ex).r, dL = texture(uBlur,vUv-ex).r - texture(uBlurPrev,vUv-ex).r;
   float dT = texture(uBlur,vUv+ey).r - texture(uBlurPrev,vUv+ey).r, dB = texture(uBlur,vUv-ey).r - texture(uBlurPrev,vUv-ey).r;
   v -= uDt*uPush*vec2(dR-dL, dT-dB)/(2.*uTexel.y);
+  vec2 bd = p - uBlowP*uAsp; float bl = length(bd) + 1e-4;
+  v += uDt*uBlow*(bd/bl)*2.4*exp(-bl*bl/0.07)*(0.5 + vnoise(p*9. + uTime*3.));   /* breath pushes the film away from where it lands */
   vec2 d = p - uPtr*uAsp; v += uPtrV*exp(-dot(d,d)/0.0045)*min(1., uDt*14.);
   v *= exp(-uDt*0.55);
   o = vec4(v,0.,1.);
@@ -160,6 +162,7 @@ void main(){
   float m = texture(uMask,vUv).r, g = texture(uBlur,vUv).r;
   float k = uHold + 16.*m + 2.5*g;
   h += (T - h)*(1. - exp(-uDt*k));
+  vec2 bd = (vUv - uBlowP)*uAsp; h -= h*(1. - exp(-uDt*uBlow*2.2*exp(-dot(bd,bd)/0.04)));   /* and thins it */
   /* marginal regeneration: thin patches are born at the wet border and rise */
   float xb = min(vUv.x, 1.-vUv.x)*uAsp.x;
   float edge = mix(smoothstep(0.035,0.,vUv.y), max(smoothstep(0.03,0.,vUv.y), smoothstep(0.02,0.,xb)*smoothstep(0.75,0.25,vUv.y)), uPoster);
@@ -348,12 +351,13 @@ const textCv = document.createElement('canvas'), imgCv = document.createElement(
 
 /* ---------- state ---------- */
 const S = { ar:0.8, age:0, mode:'alive', mt:0, fade:1, hole:[0.5,0.8], holeR:-1, frozen:false, time:0, push:0,
-  ptr:[0.5,0.5], ptrV:[0,0], img:null, imgKind:'none', spin:0 };
+  ptr:[0.5,0.5], ptrV:[0,0], img:null, imgKind:'none', spin:0,
+  blow:0, blowP:[0.5,0.42], blowSet:false, hard:0 };
 let V, Pr, Dv, Cu, H, Hhat, Hbar, Bcur, Bprev, Btmp;
 const val = id => parseFloat($(id).value);
 
 function common(){ return { uPoster:isBubble() ? 0 : 1, uImg:imgTex, uMask:maskTex, uBlur:Bcur.t, uAge:S.age, uHmax:val('hmax')/HN,
-  uImgAmt:S.imgKind === 'none' ? 0 : val('amt')/100, uImgInv:$('inv').checked ? 1 : 0, uRim:val('rim')/100, uTextH:$('inkmode').value === 'film' ? val('texth')/HN : 0 }; }
+  uImgAmt:S.imgKind === 'none' ? 0 : val('amt')/100, uImgInv:$('inv').checked ? 1 : 0, uRim:val('rim')/100, uTextH:$('inkmode').value === 'film' ? val('texth')/HN : 0, uBlow:S.blow, uBlowP:S.blowP }; }
 
 function allocate(){
   free(V, Pr, Dv, Cu, H, Hhat, Hbar, Bcur, Bprev, Btmp);
@@ -428,7 +432,7 @@ function step(dt){
   const asp = [DA(), 1], c = common();
   run('advV', V.b, {uV:V.a.t, uDt:dt, uAsp:asp}); V.swap();
   run('force', V.b, Object.assign({}, c, {uV:V.a.t, uH:H.a.t, uBlurPrev:Bprev.t, uDt:dt, uTime:S.time, uBuoy:3.4,
-    uAir:val('air')/100 * 0.085, uPush:0.03 * S.push, uAsp:asp, uTexel:V.a.texel, uPtr:S.ptr, uPtrV:S.ptrV})); V.swap();
+    uAir:val('air')/100 * 0.085 * (1 + 7*S.blow), uPush:0.03 * S.push, uAsp:asp, uTexel:V.a.texel, uPtr:S.ptr, uPtrV:S.ptrV})); V.swap();
   run('curl', Cu, {uV:V.a.t, uTexel:V.a.texel});
   run('vort', V.b, {uV:V.a.t, uC:Cu.t, uTexel:V.a.texel, uDt:dt, uEps:9}); V.swap();
   run('div', Dv, {uV:V.a.t, uTexel:V.a.texel});
@@ -448,7 +452,8 @@ function draw(){
     uTilt:val('tilt') * Math.PI/180, uHoleR:S.holeR, uFade:S.fade, uSeed:(S.time*60 % 97)});
 }
 function inkRGB(){ const h = $('ink').value; return [1,3,5].map(i => parseInt(h.slice(i, i+2), 16)/255); }
-function pop(){ if (S.mode !== 'alive') return; S.mode = 'burst'; S.mt = 0;
+function pop(at){ if (S.mode !== 'alive') return; S.mode = 'burst'; S.mt = 0;
+  if (Array.isArray(at)){ S.hole = at; return; }
   if (!isBubble()){ S.hole = [0.2 + Math.random()*0.6, 0.55 + Math.random()*0.4]; return; }
   S.hole = [(0.5 - S.spin/(2*Math.PI) + (Math.random() - 0.5)*0.3) % 1, 0.6 + Math.random()*0.3]; if (S.hole[0] < 0) S.hole[0] += 1; }
 function life(dt){
@@ -479,6 +484,7 @@ function frame(t){
   if (!exporting){
     fit();
     if (!S.frozen && isBubble()) S.spin += dt*val('tilt')*Math.PI/180;
+    breath(dt);
     if (!S.frozen || S.mode !== 'alive'){ life(dt); if (S.mode === 'alive') step(dt); }
     draw(); hud();
   }
@@ -486,7 +492,7 @@ function frame(t){
 }
 
 /* ---------- controls ---------- */
-const fmt = { drain:v => v == 0 ? 'off' : '×' + (+v).toFixed(2), size:v => (+v).toFixed(1) + '%', track:v => v + '%', ypos:v => v + '%', rim:v => v + '%',
+const fmt = { sens:v => '×' + (+v).toFixed(1), drain:v => v == 0 ? 'off' : '×' + (+v).toFixed(2), size:v => (+v).toFixed(1) + '%', track:v => v + '%', ypos:v => v + '%', rim:v => v + '%',
   amt:v => v + '%', show:v => v + '%', ink:v => v.toUpperCase().slice(1),
   texth:v => { const k = Math.min(LUT_N - 1, Math.round(2*N_FILM*Math.max(v, 3)/OPD_MAX*(LUT_N - 1))); const t = tone([lut[k*4], lut[k*4+1], lut[k*4+2]]).map(x => Math.round(x*255)); return `<i class="sw" style="background:rgb(${t})"></i>${v}`; }, hold:v => (+v).toFixed(1) + '/s', hmax:v => v + ' nm', air:v => v + '%', tilt:v => v + (isBubble() ? '°/s' : '°') };
 for (const id in fmt){ const el = $(id), out = $(id + 'O'); const up = () => out.innerHTML = fmt[id](el.value); el.addEventListener('input', up); up(); }
@@ -523,7 +529,7 @@ $('file').addEventListener('change', e => {
 });
 $('freeze').addEventListener('click', e => { S.frozen = !S.frozen; e.currentTarget.setAttribute('aria-pressed', S.frozen); e.currentTarget.textContent = S.frozen ? 'Frozen' : 'Freeze'; });
 $('redip').addEventListener('click', () => { if (S.mode === 'alive'){ newFilm(); S.fade = 0; } });
-$('pop').addEventListener('click', pop);
+$('pop').addEventListener('click', () => pop());
 $('format').addEventListener('change', e => setFormat(parseFloat(e.target.value)));
 function setFormat(ar){
   S.ar = ar; document.documentElement.style.setProperty('--ar', ar);
@@ -532,15 +538,20 @@ function setFormat(ar){
 function note(s){ $('note').textContent = s; }
 
 let lp = null;
+/* screen point -> film coordinates (on the bubble: longitude/latitude of the near wall), or null off the bubble */
+function filmUV(e){
+  const r = canvas.getBoundingClientRect();
+  if (!isBubble()) return [(e.clientX - r.left)/r.width, 1 - (e.clientY - r.top)/r.height];
+  const qx = ((e.clientX - r.left)/r.width - 0.5)*S.ar, qy = 0.5 - (e.clientY - r.top)/r.height - 0.03, R = 0.41*Math.min(S.ar, 1), r2 = qx*qx + qy*qy;
+  if (r2 >= R*R) return null;
+  const nz = Math.sqrt(R*R - r2)/R, lon = (0.5 + (Math.atan2(qx/R, nz) + S.spin)/(2*Math.PI)) % 1;
+  return [lon < 0 ? lon + 1 : lon, Math.acos(Math.max(-1, Math.min(1, -qy/R)))/Math.PI];
+}
+canvas.addEventListener('pointerdown', e => { const u = filmUV(e); if (u){ S.blowP = u; S.blowSet = true; } });
 canvas.addEventListener('pointermove', e => {
-  const r = canvas.getBoundingClientRect(), now = performance.now();
-  let u;
-  if (isBubble()){
-    const qx = ((e.clientX - r.left)/r.width - 0.5)*S.ar, qy = 0.5 - (e.clientY - r.top)/r.height - 0.03, R = 0.41*Math.min(S.ar, 1), r2 = qx*qx + qy*qy;
-    if (r2 >= R*R){ lp = null; return; }
-    const nz = Math.sqrt(R*R - r2)/R, lon = (0.5 + (Math.atan2(qx/R, nz) + S.spin)/(2*Math.PI)) % 1;
-    u = [lon < 0 ? lon + 1 : lon, Math.acos(Math.max(-1, Math.min(1, -qy/R)))/Math.PI];
-  } else u = [(e.clientX - r.left)/r.width, 1 - (e.clientY - r.top)/r.height];
+  const now = performance.now();
+  const u = filmUV(e);
+  if (!u){ lp = null; return; }
   if (lp && Math.abs(u[0] - lp.u[0]) < 0.3 && (e.pointerType === 'mouse' || e.buttons)){
     const k = 1000 / Math.max(8, now - lp.t);
     const vx = (u[0] - lp.u[0]) * DA() * k, vy = (u[1] - lp.u[1]) * k, m = Math.hypot(vx, vy), c = m > 1.6 ? 1.6/m : 1;
@@ -576,6 +587,48 @@ $('save').addEventListener('click', async () => {
   }
 });
 
+/* ---------- breath ---------- */
+let analyser = null, abuf = null, held = false;
+$('mic').addEventListener('click', async () => {
+  if (analyser) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = ac.createAnalyser(); analyser.fftSize = 1024; ac.createMediaStreamSource(stream).connect(analyser);
+    abuf = new Float32Array(analyser.fftSize);
+    $('mic').textContent = 'Microphone on'; $('mic').setAttribute('aria-pressed', 'true');
+  } catch (err){
+    $('micnote').textContent = 'The microphone is not available here. Hold the Blow button (or Space) instead, or open the page from an https address to use the microphone.';
+  }
+});
+const hold = v => () => { held = v; };
+$('blow').addEventListener('pointerdown', hold(true));
+['pointerup','pointerleave','pointercancel','blur'].forEach(n => $('blow').addEventListener(n, hold(false)));
+$('blow').addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') held = true; });
+$('blow').addEventListener('keyup', hold(false));
+/* Space blows too, unless you're typing */
+addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat && !e.target.closest('textarea,input,select,button')){ held = true; e.preventDefault(); } });
+addEventListener('keyup', e => { if (e.code === 'Space' && !e.target.closest('textarea,input,select,button')) held = false; });
+function breath(dt){
+  let lvl = 0;
+  if (analyser){
+    analyser.getFloatTimeDomainData(abuf); let s = 0;
+    for (let i = 0; i < abuf.length; i++) s += abuf[i]*abuf[i];
+    lvl = Math.max(0, Math.sqrt(s/abuf.length) - 0.012) * val('sens');
+  }
+  if (held) lvl = Math.max(lvl, 0.8);
+  lvl = Math.min(1, lvl);
+  S.blow += (lvl - S.blow) * Math.min(1, dt * (lvl > S.blow ? 14 : 5));
+  $('breathfill').style.width = Math.round(S.blow*100) + '%';
+  /* on the bubble, unless you picked a spot, breath lands on the front of the bubble as it turns */
+  if (isBubble() && !S.blowSet){ const lon = (0.5 + S.spin/(2*Math.PI)) % 1; S.blowP = [lon < 0 ? lon + 1 : lon, 0.5]; }
+  if (S.mode === 'alive' && !S.frozen){
+    S.age = Math.min(1, S.age + dt*S.blow*0.035);          /* breath spends the film's life */
+    S.hard = S.blow > 0.93 ? S.hard + dt : 0;
+    if (S.hard > 1.4){ S.hard = 0; pop(S.blowP.slice()); }  /* too hard for too long: it bursts where you blew */
+  }
+}
+
 /* ---------- form switch ---------- */
 const FORMS = {
   poster: { lede:'The film fills the poster and thins from the top. The type is cut out of it, so the letters are only gaps the film flows around, and whatever you wrote first is the first thing to go. Change the size, position or typeface and the gaps reshape. Drag across the film to disturb it.',
@@ -602,7 +655,7 @@ function rebuild(){
 function setForm(m){
   if (m === MODE) return;
   MODE = m; try { localStorage.setItem('thinfilm-form', m); } catch (e) {}
-  S.mode = 'alive'; S.holeR = -1; S.fade = 0; S.spin = 0; lp = null;
+  S.mode = 'alive'; S.holeR = -1; S.fade = 0; S.spin = 0; lp = null; S.blowSet = false; S.blowP = [0.5, 0.42];
   configure(); rebuild();
 }
 $('formPoster').addEventListener('click', () => setForm('poster'));
