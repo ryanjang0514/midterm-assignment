@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thin Film Type</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@800&family=Archivo+Black&family=Bebas+Neue&family=Big+Shoulders+Display:wght@800&family=Black+Han+Sans&family=Bodoni+Moda:wght@700&family=Bricolage+Grotesque:wght@800&family=Cormorant+Garamond:wght@600&family=DM+Serif+Display&family=Fraunces:wght@700&family=Instrument+Serif&family=Martian+Mono:wght@400;600&family=Nanum+Myeongjo:wght@800&family=Noto+Sans+KR:wght@800&family=Noto+Serif+KR:wght@700&family=Oswald:wght@700&family=Playfair+Display:wght@800&family=Schibsted+Grotesk:wght@400;500;600&family=Space+Mono:wght@700&family=Syne:wght@800&family=Unbounded:wght@800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <main class="stage">
+    <div class="frame" id="frame">
+      <canvas id="film" aria-label="Soap film poster"></canvas>
+      <div class="fail" id="fail" hidden>This browser can't run the film simulation (it needs WebGL 2 with float render targets).</div>
+    </div>
+  </main>
+
+  <aside class="panel">
+    <header>
+      <h1>Thin Film Type</h1>
+      <p class="lede" id="lede"></p>
+    </header>
+
+    <section>
+      <h2>Form</h2>
+      <div class="pair" role="group" aria-label="Form">
+        <button id="formPoster" aria-pressed="true">Flat sheet</button>
+        <button id="formBubble" aria-pressed="false">Bubble</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Film life</h2>
+      <div class="life">
+        <div class="lifebar"><i id="lifefill"></i></div>
+        <div class="lifetxt"><span id="lifepct">100% left</span><span id="lifestate">draining</span></div>
+      </div>
+      <div class="trio">
+        <button id="freeze" aria-pressed="false">Freeze</button>
+        <button id="redip">New film</button>
+        <button id="pop">Pop</button>
+      </div>
+      <div class="row"><label for="drain">Drain</label><input id="drain" type="range" min="0" max="3" step="0.05" value="1"><output id="drainO"></output></div>
+    </section>
+
+    <section>
+      <h2>Type</h2>
+      <textarea id="text" spellcheck="false" aria-label="Poster text">THIS IS A POSTER</textarea>
+      <div class="pair">
+        <select id="font" aria-label="Typeface">
+          <optgroup label="Sans">
+            <option value='800|"Big Shoulders Display"'>Big Shoulders</option>
+            <option value='800|"Archivo"'>Archivo</option>
+            <option value='400|"Archivo Black"'>Archivo Black</option>
+            <option value='400|"Anton"'>Anton</option>
+            <option value='400|"Bebas Neue"'>Bebas Neue</option>
+            <option value='700|"Oswald"'>Oswald</option>
+            <option value='800|"Bricolage Grotesque"'>Bricolage Grotesque</option>
+            <option value='800|"Syne"'>Syne</option>
+            <option value='800|"Unbounded"'>Unbounded</option>
+          </optgroup>
+          <optgroup label="Serif">
+            <option value='400|"Instrument Serif"'>Instrument Serif</option>
+            <option value='800|"Playfair Display"'>Playfair Display</option>
+            <option value='700|"Bodoni Moda"'>Bodoni Moda</option>
+            <option value='400|"DM Serif Display"'>DM Serif Display</option>
+            <option value='700|"Fraunces"'>Fraunces</option>
+            <option value='600|"Cormorant Garamond"'>Cormorant Garamond</option>
+          </optgroup>
+          <optgroup label="Mono">
+            <option value='600|"Martian Mono"'>Martian Mono</option>
+            <option value='700|"Space Mono"'>Space Mono</option>
+          </optgroup>
+          <optgroup label="Korean">
+            <option value='800|"Noto Sans KR"'>Noto Sans KR</option>
+            <option value='700|"Noto Serif KR"'>Noto Serif KR</option>
+            <option value='400|"Black Han Sans"'>Black Han Sans</option>
+            <option value='800|"Nanum Myeongjo"'>Nanum Myeongjo</option>
+          </optgroup>
+          <optgroup label="Your fonts" id="myfonts" hidden></optgroup>
+        </select>
+        <label class="file">Upload font<input id="fontfile" type="file" accept=".ttf,.otf,.woff,.woff2,font/*" multiple></label>
+      </div>
+      <div class="pair">
+        <select id="align" aria-label="Alignment">
+          <option value="center">Centre</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+        </select>
+        <select id="inkmode" aria-label="Letter colour mode">
+          <option value="hole" selected>Cut out of the film</option>
+          <option value="ink">Solid colour</option>
+          <option value="film">Colour by thickness</option>
+        </select>
+      </div>
+      <div class="row" id="thRow" hidden><label for="texth">Letter film</label><input id="texth" type="range" min="0" max="700" step="5" value="0"><output id="texthO"></output></div>
+      <div class="row" id="inkRow" hidden><label for="ink">Colour</label><input id="ink" type="color" value="#ffffff"><output id="inkO"></output></div>
+      <div class="row"><label for="size">Size</label><input id="size" type="range" min="4" max="42" step="0.5" value="11"><output id="sizeO"></output></div>
+      <div class="row"><label for="track">Tracking</label><input id="track" type="range" min="-6" max="30" step="1" value="0"><output id="trackO"></output></div>
+      <div class="row"><label for="ypos">Position</label><input id="ypos" type="range" min="4" max="96" step="1" value="50"><output id="yposO"></output></div>
+      <div class="row"><label for="rim">Rim</label><input id="rim" type="range" min="0" max="100" step="1" value="55"><output id="rimO"></output></div>
+    </section>
+
+    <section>
+      <h2>Image as thickness</h2>
+      <div class="pair">
+        <label class="file">Upload image<input id="file" type="file" accept="image/*"></label>
+        <select id="sample" aria-label="Image source">
+          <option value="sphere">Sample: sphere</option>
+          <option value="none">No image</option>
+          <option value="upload" disabled>Your image</option>
+        </select>
+      </div>
+      <div class="row"><label for="amt">Relief</label><input id="amt" type="range" min="0" max="100" step="1" value="75"><output id="amtO"></output></div>
+      <div class="row"><label for="show">Reflection</label><input id="show" type="range" min="0" max="100" step="1" value="70"><output id="showO"></output></div>
+      <div class="row"><label for="hold">Hold</label><input id="hold" type="range" min="0.1" max="8" step="0.1" value="3"><output id="holdO"></output></div>
+      <label class="check"><input id="inv" type="checkbox"> Invert (bright areas become thin)</label>
+    </section>
+
+    <section>
+      <h2>Film</h2>
+      <div class="row"><label for="hmax">Thickness</label><input id="hmax" type="range" min="250" max="1300" step="10" value="900"><output id="hmaxO"></output></div>
+      <div class="row"><label for="air">Air</label><input id="air" type="range" min="0" max="100" step="1" value="35"><output id="airO"></output></div>
+      <div class="row"><label for="tilt">Spin</label><input id="tilt" type="range" min="-30" max="30" step="1" value="5"><output id="tiltO"></output></div>
+      <div class="scale">
+        <canvas id="scale" width="616" height="52" aria-label="Film thickness to colour scale"></canvas>
+        <div class="ticks"><span>0</span><span>350</span><span>700</span><span>1050</span><span>1400 nm</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Poster</h2>
+      <div class="pair">
+        <select id="format" aria-label="Format">
+          <option value="0.8">4 : 5</option>
+          <option value="0.7071">A series</option>
+          <option value="0.6667">2 : 3</option>
+          <option value="0.75">18 × 24 in</option>
+          <option value="1">Square</option>
+          <option value="0.5625">9 : 16</option>
+        </select>
+        <select id="res" aria-label="Export size">
+          <option value="2400">2400 px</option>
+          <option value="3600">3600 px</option>
+          <option value="4800">4800 px</option>
+        </select>
+      </div>
+      <button class="go" id="save">Save PNG of this moment</button>
+      <p class="note" id="note"></p>
+    </section>
+  </aside>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
